@@ -1,26 +1,34 @@
 import { useEffect, useState } from 'react'
-import { getTimeZones, isValidTimeZone, parseDate, timeToMinutes } from '../lib/dateUtils'
+import {
+  formatWeekdayNumber,
+  getTimeZones,
+  isValidTimeZone,
+  parseDate,
+  timeToMinutes,
+} from '../lib/dateUtils'
+import { t } from '../lib/i18n'
 import Icon from './Icon'
-import type { RuleType, ScheduleKind, TimeRule } from '../types'
+import type { Locale, RuleType, ScheduleKind, TimeRule } from '../types'
 
 interface RuleEditorProps {
   initialRule: TimeRule
   mode: 'create' | 'edit'
+  locale: Locale
   onClose: () => void
   onSave: (rule: TimeRule) => void
 }
 
 const WEEKDAYS = [
-  { value: 1, label: '一', fullLabel: '周一' },
-  { value: 2, label: '二', fullLabel: '周二' },
-  { value: 3, label: '三', fullLabel: '周三' },
-  { value: 4, label: '四', fullLabel: '周四' },
-  { value: 5, label: '五', fullLabel: '周五' },
-  { value: 6, label: '六', fullLabel: '周六' },
-  { value: 7, label: '日', fullLabel: '周日' },
+  { value: 1 },
+  { value: 2 },
+  { value: 3 },
+  { value: 4 },
+  { value: 5 },
+  { value: 6 },
+  { value: 7 },
 ]
 
-export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleEditorProps) {
+export default function RuleEditor({ initialRule, mode, locale, onClose, onSave }: RuleEditorProps) {
   const [draft, setDraft] = useState<TimeRule>(initialRule)
   const [error, setError] = useState('')
   const timezones = getTimeZones()
@@ -38,7 +46,7 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
   function changeType(type: RuleType) {
     update({
       type,
-      name: type === 'override' ? '覆盖时间' : '排除时间',
+      name: t(locale, type === 'override' ? 'defaultOverrideName' : 'defaultExcludeName'),
     })
   }
 
@@ -75,31 +83,31 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!draft.name.trim()) {
-      setError('请填写规则名称。')
+      setError(t(locale, 'errorRuleName'))
       return
     }
     if (!isValidTimeZone(draft.timezone)) {
-      setError('请选择有效的 IANA 时区。')
+      setError(t(locale, 'errorTimezone'))
       return
     }
     const start = timeToMinutes(draft.startTime)
     const end = timeToMinutes(draft.endTime)
     if (start === null || end === null || start === end) {
-      setError('开始和结束时间必须有效且不能相同。')
+      setError(t(locale, 'errorTimeRange'))
       return
     }
     const dateStart = draft.dateStart ?? draft.date
     const dateEnd = draft.dateEnd ?? dateStart
     if (draft.schedule === 'date' && (!dateStart || !dateEnd || !parseDate(dateStart) || !parseDate(dateEnd))) {
-      setError('请选择有效的生效日期范围。')
+      setError(t(locale, 'errorDateRange'))
       return
     }
     if (draft.schedule === 'date' && dateStart! > dateEnd!) {
-      setError('结束日期不能早于开始日期。')
+      setError(t(locale, 'errorEndDate'))
       return
     }
     if (draft.schedule === 'weekly' && !(draft.weekdays?.length ?? 0)) {
-      setError('请至少选择一个重复星期。')
+      setError(t(locale, 'errorWeekday'))
       return
     }
     onSave({
@@ -124,56 +132,56 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
         <div className="editor-heading">
           <div>
             <span className={`editor-kicker ${draft.type}`}>
-              <i /> {draft.type === 'override' ? '覆盖时间' : '排除时间'}
+              <i /> {t(locale, draft.type === 'override' ? 'overrideTime' : 'excludeTime')}
             </span>
-            <h2 id="rule-editor-title">{mode === 'create' ? '添加时间规则' : '编辑时间规则'}</h2>
+            <h2 id="rule-editor-title">{t(locale, mode === 'create' ? 'addTimeRule' : 'editTimeRule')}</h2>
           </div>
-          <button className="icon-button" onClick={onClose} type="button" aria-label="关闭编辑器">
+          <button className="icon-button" onClick={onClose} type="button" aria-label={t(locale, 'closeEditor')}>
             <Icon name="close" size={17} />
           </button>
         </div>
 
         <form onSubmit={submit}>
-          <div className="form-section-heading">规则类型</div>
-          <div className="segmented-control type-control" aria-label="规则类型">
+          <div className="form-section-heading">{t(locale, 'ruleType')}</div>
+          <div className="segmented-control type-control" aria-label={t(locale, 'ruleType')}>
             <button
               className={draft.type === 'override' ? 'active override-tab' : ''}
               onClick={() => changeType('override')}
               type="button"
             >
-              <span className="legend-dot override-dot" />覆盖时间
+              <span className="legend-dot override-dot" />{t(locale, 'overrideTime')}
             </button>
             <button
               className={draft.type === 'exclude' ? 'active exclude-tab' : ''}
               onClick={() => changeType('exclude')}
               type="button"
             >
-              <span className="legend-dot exclude-dot" />排除时间
+              <span className="legend-dot exclude-dot" />{t(locale, 'excludeTime')}
             </button>
           </div>
 
           <label className="field-label" htmlFor="rule-name">
-            规则名称
+            {t(locale, 'ruleName')}
             <input
               id="rule-name"
               value={draft.name}
               onChange={(event) => update({ name: event.target.value })}
-              placeholder="例如：核心团队工作时间"
+              placeholder={t(locale, 'ruleNamePlaceholder')}
               autoFocus
             />
           </label>
 
           <div className="form-grid">
             <label className="field-label">
-              重复方式
+              {t(locale, 'recurrence')}
               <select value={draft.schedule} onChange={(event) => changeSchedule(event.target.value as ScheduleKind)}>
-                <option value="daily">每天</option>
-                <option value="weekly">按星期重复</option>
-                <option value="date">具体日期</option>
+                <option value="daily">{t(locale, 'daily')}</option>
+                <option value="weekly">{t(locale, 'weekly')}</option>
+                <option value="date">{t(locale, 'specificDate')}</option>
               </select>
             </label>
             <label className="field-label">
-              所属时区
+              {t(locale, 'ruleTimezone')}
               <select value={draft.timezone} onChange={(event) => update({ timezone: event.target.value })}>
                 {timezones.map((timezone) => (
                   <option value={timezone} key={timezone}>
@@ -186,10 +194,10 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
 
           {draft.schedule === 'date' ? (
             <div className="date-range-editor">
-              <div className="date-range-label">生效日期 <span>可选择跨多天</span></div>
+              <div className="date-range-label">{t(locale, 'effectiveDate')} <span>{t(locale, 'multiDay')}</span></div>
               <div className="form-grid">
                 <label className="field-label" htmlFor="rule-date-start">
-                  开始日期
+                  {t(locale, 'startDate')}
                   <input
                     id="rule-date-start"
                     type="date"
@@ -205,7 +213,7 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
                   />
                 </label>
                 <label className="field-label" htmlFor="rule-date-end">
-                  结束日期
+                  {t(locale, 'endDate')}
                   <input
                     id="rule-date-end"
                     type="date"
@@ -217,7 +225,7 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
             </div>
           ) : draft.schedule === 'weekly' ? (
             <fieldset className="field-label weekday-field">
-              <legend>重复星期</legend>
+              <legend>{t(locale, 'repeatWeekdays')}</legend>
               <div className="weekday-picker">
                 {WEEKDAYS.map((weekday) => (
                   <button
@@ -225,10 +233,10 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
                     className={draft.weekdays?.includes(weekday.value) ? 'selected' : ''}
                     type="button"
                     onClick={() => toggleWeekday(weekday.value)}
-                    aria-label={weekday.fullLabel}
+                    aria-label={formatWeekdayNumber(weekday.value, locale, 'long')}
                     aria-pressed={draft.weekdays?.includes(weekday.value)}
                   >
-                    {weekday.label}
+                    {formatWeekdayNumber(weekday.value, locale)}
                   </button>
                 ))}
               </div>
@@ -236,13 +244,13 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
           ) : (
             <div className="daily-note">
               <Icon name="repeat" size={15} />
-              <span>这条规则会在计算范围内的每天生效。</span>
+              <span>{t(locale, 'dailyNote')}</span>
             </div>
           )}
 
           <div className="form-grid time-grid">
             <label className="field-label" htmlFor="rule-start">
-              开始时间
+              {t(locale, 'startTime')}
               <input
                 id="rule-start"
                 type="time"
@@ -251,7 +259,7 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
               />
             </label>
             <label className="field-label" htmlFor="rule-end">
-              结束时间
+              {t(locale, 'endTime')}
               <input
                 id="rule-end"
                 type="time"
@@ -263,17 +271,17 @@ export default function RuleEditor({ initialRule, mode, onClose, onSave }: RuleE
 
           <div className="helper-note">
             <span className="helper-icon"><Icon name="help-circle" size={15} /></span>
-            允许跨午夜，例如 23:00–01:00。结果会按目标时区拆分到相邻日期。
+            {t(locale, 'overnightHelper')}
           </div>
 
           {error ? <div className="form-error">{error}</div> : null}
 
           <div className="editor-actions">
             <button className="button secondary" type="button" onClick={onClose}>
-              取消
+              {t(locale, 'cancel')}
             </button>
             <button className="button primary" type="submit">
-              保存规则 <Icon name="check" size={15} />
+              {t(locale, 'saveRule')} <Icon name="check" size={15} />
             </button>
           </div>
         </form>

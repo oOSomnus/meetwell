@@ -12,9 +12,10 @@ import {
   resolveBrowserTimeZone,
   todayInTimeZone,
 } from './lib/dateUtils'
+import { formatDuration, loadLocale, ruleCountLabel, saveLocale, t } from './lib/i18n'
 import { computeSchedule, totalAvailableMinutes } from './lib/scheduler'
 import { loadState, parseState, saveState } from './lib/storage'
-import type { ExportLanguage, RuleType, SchedulerState, TimeRule } from './types'
+import type { ExportLanguage, Locale, RuleType, SchedulerState, TimeRule } from './types'
 
 type Notice = { tone: 'success' | 'error' | 'info'; message: string }
 
@@ -31,13 +32,13 @@ function createDefaultState(): SchedulerState {
   }
 }
 
-function createRule(type: RuleType, state: SchedulerState): TimeRule {
+function createRule(type: RuleType, state: SchedulerState, locale: Locale): TimeRule {
   const randomId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   return {
     id: randomId,
-    name: type === 'override' ? '覆盖时间' : '排除时间',
+    name: t(locale, type === 'override' ? 'defaultOverrideName' : 'defaultExcludeName'),
     type,
     schedule: 'weekly',
     timezone: state.targetTimezone,
@@ -50,16 +51,9 @@ function createRule(type: RuleType, state: SchedulerState): TimeRule {
   }
 }
 
-function totalDurationLabel(minutes: number): string {
-  if (!minutes) return '—'
-  const hours = Math.floor(minutes / 60)
-  const remaining = minutes % 60
-  if (!hours) return `${remaining} 分钟`
-  return remaining ? `${hours} 小时 ${remaining} 分钟` : `${hours} 小时`
-}
-
 function App() {
   const [state, setState] = useState<SchedulerState>(() => loadState() ?? createDefaultState())
+  const [locale, setLocale] = useState<Locale>(() => loadLocale())
   const [editingRule, setEditingRule] = useState<TimeRule | null>(null)
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
   const [notice, setNotice] = useState<Notice | null>(null)
@@ -75,6 +69,12 @@ function App() {
     return () => window.clearTimeout(timer)
   }, [state])
 
+  useEffect(() => {
+    document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en'
+    document.title = t(locale, 'documentTitle')
+    saveLocale(locale)
+  }, [locale])
+
   function showNotice(message: string, tone: Notice['tone'] = 'success') {
     setNotice({ message, tone })
     window.setTimeout(() => setNotice(null), 3200)
@@ -86,7 +86,7 @@ function App() {
 
   function addRule(type: RuleType) {
     setEditorMode('create')
-    setEditingRule(createRule(type, state))
+    setEditingRule(createRule(type, state, locale))
   }
 
   function editRule(rule: TimeRule) {
@@ -105,7 +105,7 @@ function App() {
       }
     })
     setEditingRule(null)
-    showNotice(editorMode === 'create' ? '时间规则已添加' : '时间规则已更新')
+    showNotice(t(locale, editorMode === 'create' ? 'ruleAdded' : 'ruleUpdated'))
   }
 
   function toggleRule(id: string) {
@@ -117,7 +117,7 @@ function App() {
 
   function deleteRule(id: string) {
     setState((current) => ({ ...current, rules: current.rules.filter((rule) => rule.id !== id) }))
-    showNotice('时间规则已删除', 'info')
+    showNotice(t(locale, 'ruleDeleted'), 'info')
   }
 
   async function importConfiguration(event: ChangeEvent<HTMLInputElement>) {
@@ -129,9 +129,9 @@ function App() {
       if (!imported) throw new Error('invalid')
       setState(imported)
       setEditingRule(null)
-      showNotice('配置已成功导入')
+      showNotice(t(locale, 'configImported'))
     } catch {
-      showNotice('导入失败：文件不是有效的 Meeting Scheduler 配置。', 'error')
+      showNotice(t(locale, 'configImportFailed'), 'error')
     }
   }
 
@@ -142,13 +142,16 @@ function App() {
       `meeting-scheduler-${state.rangeStart}-${state.rangeEnd}-${language}.txt`,
       'text/plain;charset=utf-8',
     )
-    showNotice(language === 'zh' ? '中文结果已导出' : 'English result exported')
+    showNotice(t(locale, language === 'zh' ? 'exportedChinese' : 'exportedEnglish'))
   }
 
   function saveNow() {
     const saved = saveState(state)
     setSaveStatus(saved ? 'saved' : 'error')
-    showNotice(saved ? '配置已保存到浏览器' : '保存失败，请检查浏览器存储权限', saved ? 'success' : 'error')
+    showNotice(
+      t(locale, saved ? 'configSaved' : 'storageSaveFailed'),
+      saved ? 'success' : 'error',
+    )
   }
 
   const overrideCount = state.rules.filter((rule) => rule.type === 'override').length
@@ -169,26 +172,39 @@ function App() {
           </div>
           <span className="topbar-divider" aria-hidden="true" />
           <div className="workspace-label">
-            <span>工作区</span>
-            <strong>会议时间规划</strong>
+            <span>{t(locale, 'workspace')}</span>
+            <strong>{t(locale, 'workspaceName')}</strong>
           </div>
           <div className="topbar-actions">
             <span className={`save-indicator ${saveStatus}`}>
               <i />
-              <span>{saveStatus === 'error' ? '保存失败' : '已自动保存'}</span>
+              <span>{t(locale, saveStatus === 'error' ? 'saveFailed' : 'autoSaved')}</span>
             </span>
+            <span className="action-divider" aria-hidden="true" />
+            <label className="topbar-locale-control">
+              <Icon name="language" size={15} />
+              <span className="visually-hidden">{t(locale, 'interfaceLanguage')}</span>
+              <select
+                value={locale}
+                aria-label={t(locale, 'interfaceLanguage')}
+                onChange={(event) => setLocale(event.target.value as Locale)}
+              >
+                <option value="zh">{t(locale, 'chinese')}</option>
+                <option value="en">{t(locale, 'english')}</option>
+              </select>
+            </label>
             <span className="action-divider" aria-hidden="true" />
             <button className="topbar-button" type="button" onClick={saveNow}>
               <Icon name="save" size={15} />
-              <span className="topbar-button-label">保存</span>
+              <span className="topbar-button-label">{t(locale, 'save')}</span>
             </button>
             <button className="topbar-button" type="button" onClick={() => importInput.current?.click()}>
               <Icon name="download" size={15} />
-              <span className="topbar-button-label">导入配置</span>
+              <span className="topbar-button-label">{t(locale, 'importConfig')}</span>
             </button>
             <button className="topbar-button" type="button" onClick={() => downloadJson(state)}>
               <Icon name="upload" size={15} />
-              <span className="topbar-button-label">导出配置</span>
+              <span className="topbar-button-label">{t(locale, 'exportConfig')}</span>
             </button>
             <input ref={importInput} type="file" accept="application/json,.json" hidden onChange={importConfiguration} />
           </div>
@@ -198,13 +214,13 @@ function App() {
       <main className="app-content">
         <section className="page-header">
           <div className="page-header-copy">
-            <span className="page-kicker">时间规划</span>
-            <h1>找到所有人都方便的时间</h1>
-            <p>设置参与者的可用时间，实时查看共同空档。</p>
+            <span className="page-kicker">{t(locale, 'schedulePlanning')}</span>
+            <h1>{t(locale, 'heroTitle')}</h1>
+            <p>{t(locale, 'heroSubtitle')}</p>
           </div>
-          <div className="summary-card" aria-label="当前可用时间总计">
-            <span>可用时间总计</span>
-            <strong>{totalDurationLabel(availableMinutes)}</strong>
+          <div className="summary-card" aria-label={t(locale, 'availableTotalAria')}>
+            <span>{t(locale, 'availableTotal')}</span>
+            <strong>{formatDuration(availableMinutes, locale)}</strong>
             <small><Icon name="globe" size={12} /> {state.targetTimezone}</small>
           </div>
         </section>
@@ -213,20 +229,20 @@ function App() {
           <div className="control-block date-controls">
             <span className="control-icon"><Icon name="calendar" size={17} /></span>
             <label>
-              <span>计算范围</span>
+              <span>{t(locale, 'dateRange')}</span>
               <div className="date-pair">
                 <input
                   type="date"
                   value={state.rangeStart}
                   onChange={(event) => updateState({ rangeStart: event.target.value })}
-                  aria-label="计算开始日期"
+                  aria-label={t(locale, 'dateRangeStartAria')}
                 />
                 <b aria-hidden="true">→</b>
                 <input
                   type="date"
                   value={state.rangeEnd}
                   onChange={(event) => updateState({ rangeEnd: event.target.value })}
-                  aria-label="计算结束日期"
+                  aria-label={t(locale, 'dateRangeEndAria')}
                 />
               </div>
             </label>
@@ -235,7 +251,7 @@ function App() {
           <div className="control-block timezone-control">
             <span className="control-icon"><Icon name="globe" size={17} /></span>
             <label>
-              <span>结果时区</span>
+              <span>{t(locale, 'targetTimezone')}</span>
               <select value={state.targetTimezone} onChange={(event) => updateState({ targetTimezone: event.target.value })}>
                 {timezones.map((timezone) => (
                   <option value={timezone} key={timezone}>
@@ -249,18 +265,18 @@ function App() {
           <div className="control-block language-control">
             <span className="control-icon"><Icon name="language" size={17} /></span>
             <label>
-              <span>导出语言</span>
+              <span>{t(locale, 'exportLanguage')}</span>
               <select
                 value={state.exportLanguage}
                 onChange={(event) => updateState({ exportLanguage: event.target.value as ExportLanguage })}
               >
-                <option value="zh">中文</option>
-                <option value="en">English</option>
+                <option value="zh">{t(locale, 'chinese')}</option>
+                <option value="en">{t(locale, 'english')}</option>
               </select>
             </label>
           </div>
           <button className="button primary export-result-button" type="button" onClick={exportResult}>
-            导出最终结果 <Icon name="arrow-up-right" size={15} />
+            {t(locale, 'exportResult')} <Icon name="arrow-up-right" size={15} />
           </button>
         </section>
 
@@ -268,32 +284,32 @@ function App() {
           <aside className="rules-panel panel">
             <div className="panel-heading">
               <div>
-                <span className="panel-kicker">输入条件</span>
-                <h2>时间规则 <span className="heading-count">{state.rules.length}</span></h2>
+                <span className="panel-kicker">{t(locale, 'inputConditions')}</span>
+                <h2>{t(locale, 'timeRules')} <span className="heading-count">{state.rules.length}</span></h2>
               </div>
               <button className="add-rule-button" type="button" onClick={() => addRule('override')}>
-                <Icon name="plus" size={15} /> 新增
+                <Icon name="plus" size={15} /> {t(locale, 'add')}
               </button>
             </div>
-            <p className="panel-intro">覆盖时间必须全部重叠，排除时间会从结果中扣除。</p>
-            <RuleList rules={state.rules} onAdd={addRule} onEdit={editRule} onToggle={toggleRule} onDelete={deleteRule} />
+            <p className="panel-intro">{t(locale, 'rulesIntro')}</p>
+            <RuleList locale={locale} rules={state.rules} onAdd={addRule} onEdit={editRule} onToggle={toggleRule} onDelete={deleteRule} />
             <div className="rules-footer">
-              <div><i className="footer-dot override" />{overrideCount} 个覆盖规则</div>
-              <div><i className="footer-dot exclude" />{excludeCount} 个排除规则</div>
+              <div><i className="footer-dot override" />{ruleCountLabel(locale, 'override', overrideCount)}</div>
+              <div><i className="footer-dot exclude" />{ruleCountLabel(locale, 'exclude', excludeCount)}</div>
             </div>
           </aside>
 
           <section className="results-panel">
             <div className="results-heading">
               <div>
-                <span className="panel-kicker">计算结果</span>
-                <h2>最终可用时间</h2>
+                <span className="panel-kicker">{t(locale, 'calculationResult')}</span>
+                <h2>{t(locale, 'finalAvailableTime')}</h2>
               </div>
               <div className="result-context">
                 <span className="context-dot" />
                 <span>{state.targetTimezone}</span>
                 <b aria-hidden="true">·</b>
-                <span>{state.rangeStart && state.rangeEnd ? `${formatDisplayDate(state.rangeStart, 'zh')} — ${formatDisplayDate(state.rangeEnd, 'zh')}` : '日期范围未设置'}</span>
+                <span>{state.rangeStart && state.rangeEnd ? `${formatDisplayDate(state.rangeStart, locale)} — ${formatDisplayDate(state.rangeEnd, locale)}` : t(locale, 'dateRangeUnset')}</span>
               </div>
             </div>
 
@@ -301,28 +317,28 @@ function App() {
               <div className="notice-card error-card">
                 <span className="notice-icon"><Icon name="alert-circle" size={18} /></span>
                 <div>
-                  <strong>日期范围需要调整</strong>
-                  <p>请确认开始日期和结束日期均有效，并且开始日期不晚于结束日期。</p>
+                  <strong>{t(locale, 'invalidDateRangeTitle')}</strong>
+                  <p>{t(locale, 'invalidDateRangeBody')}</p>
                 </div>
               </div>
             ) : !result.hasEnabledOverride ? (
               <div className="notice-card empty-card">
                 <span className="notice-icon"><Icon name="calendar" size={18} /></span>
                 <div>
-                  <strong>先添加一个覆盖时间</strong>
-                  <p>覆盖时间定义会议必须发生的范围。添加后，结果会在这里实时出现。</p>
+                  <strong>{t(locale, 'addOverrideTitle')}</strong>
+                  <p>{t(locale, 'addOverrideBody')}</p>
                   <button className="inline-action" type="button" onClick={() => addRule('override')}>
-                    添加覆盖时间 <Icon name="arrow-right" size={15} />
+                    {t(locale, 'addOverrideAction')} <Icon name="arrow-right" size={15} />
                   </button>
                 </div>
               </div>
             ) : (
-              <ScheduleView days={result.days} targetTimezone={state.targetTimezone} />
+              <ScheduleView days={result.days} targetTimezone={state.targetTimezone} locale={locale} />
             )}
 
             <div className="result-footnote">
               <span className="footnote-line" />
-              <span><Icon name="globe" size={12} /> 所有时间按规则所属时区计算，再转换到结果时区。</span>
+              <span><Icon name="globe" size={12} /> {t(locale, 'allTimesNote')}</span>
               <span className="footnote-line" />
             </div>
           </section>
@@ -334,6 +350,7 @@ function App() {
         <RuleEditor
           initialRule={editingRule}
           mode={editorMode}
+          locale={locale}
           onClose={() => setEditingRule(null)}
           onSave={saveRule}
         />

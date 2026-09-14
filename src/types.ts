@@ -1,6 +1,7 @@
 export type RuleType = 'override' | 'exclude'
 export type ScheduleKind = 'date' | 'weekly' | 'daily'
-export type ExportLanguage = 'zh' | 'en'
+export type Locale = 'zh' | 'en'
+export type ExportLanguage = Locale
 
 export interface TimeRule {
   id: string

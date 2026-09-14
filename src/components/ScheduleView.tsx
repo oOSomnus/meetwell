@@ -1,11 +1,13 @@
-import { formatTimeForDay, formatWeekday } from '../lib/dateUtils'
+import { formatDisplayDate, formatTimeForDay, formatWeekday } from '../lib/dateUtils'
+import { formatDuration, t } from '../lib/i18n'
 import { intervalMinutes, intervalPosition } from '../lib/scheduler'
 import Icon from './Icon'
-import type { DailySchedule, TimeInterval } from '../types'
+import type { DailySchedule, Locale, TimeInterval } from '../types'
 
 interface ScheduleViewProps {
   days: DailySchedule[]
   targetTimezone: string
+  locale: Locale
 }
 
 function segmentStyle(interval: TimeInterval, day: DailySchedule) {
@@ -18,13 +20,6 @@ function segmentStyle(interval: TimeInterval, day: DailySchedule) {
 
 function intervalLabel(interval: TimeInterval, day: DailySchedule, timezone: string) {
   return `${formatTimeForDay(interval.start, day.dayStart, day.dayEnd, timezone)}–${formatTimeForDay(interval.end, day.dayStart, day.dayEnd, timezone)}`
-}
-
-function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} 分钟`
-  const hours = Math.floor(minutes / 60)
-  const remaining = minutes % 60
-  return remaining ? `${hours} 小时 ${remaining} 分钟` : `${hours} 小时`
 }
 
 function SegmentRow({
@@ -68,9 +63,9 @@ function TimeAxis() {
   )
 }
 
-function DayCard({ day, targetTimezone }: { day: DailySchedule; targetTimezone: string }) {
+function DayCard({ day, targetTimezone, locale }: { day: DailySchedule; targetTimezone: string; locale: Locale }) {
   const availableMinutes = day.available.reduce((total, interval) => total + intervalMinutes(interval), 0)
-  const dayLabel = formatWeekday(day.date, 'zh')
+  const dayLabel = formatWeekday(day.date, locale)
   return (
     <article className="day-card">
       <div className="day-card-header">
@@ -78,20 +73,20 @@ function DayCard({ day, targetTimezone }: { day: DailySchedule; targetTimezone: 
           <span className="date-number">{day.date.slice(8)}</span>
           <div>
             <strong>{dayLabel}</strong>
-            <span>{day.date}</span>
+            <span>{formatDisplayDate(day.date, locale)}</span>
           </div>
         </div>
         <div className={`day-total ${availableMinutes ? '' : 'empty'}`}>
-          <span>{availableMinutes ? durationLabel(availableMinutes) : '无可用时间'}</span>
-          {availableMinutes ? <i><Icon name="check" size={12} />可用</i> : null}
+          <span>{availableMinutes ? formatDuration(availableMinutes, locale) : t(locale, 'noAvailableTime')}</span>
+          {availableMinutes ? <i><Icon name="check" size={12} />{t(locale, 'available')}</i> : null}
         </div>
       </div>
 
       <div className="timeline-layout">
         <div className="timeline-labels" aria-hidden="true">
-          <span>交集</span>
-          <span>排除</span>
-          <span className="final-label">可用</span>
+          <span>{t(locale, 'intersection')}</span>
+          <span>{t(locale, 'excluded')}</span>
+          <span className="final-label">{t(locale, 'finalAvailable')}</span>
         </div>
         <div className="timeline-wrap">
           <div className="timeline-track">
@@ -102,9 +97,9 @@ function DayCard({ day, targetTimezone }: { day: DailySchedule; targetTimezone: 
               <i style={{ left: '75%' }} />
               <i style={{ left: '100%' }} />
             </div>
-            <SegmentRow intervals={day.coverage} day={day} timezone={targetTimezone} className="coverage-row" label="覆盖交集" />
-            <SegmentRow intervals={day.exclusions} day={day} timezone={targetTimezone} className="exclude-row" label="排除时间" />
-            <SegmentRow intervals={day.available} day={day} timezone={targetTimezone} className="available-row" label="最终可用时间" />
+            <SegmentRow intervals={day.coverage} day={day} timezone={targetTimezone} className="coverage-row" label={t(locale, 'coverageLabel')} />
+            <SegmentRow intervals={day.exclusions} day={day} timezone={targetTimezone} className="exclude-row" label={t(locale, 'exclusionLabel')} />
+            <SegmentRow intervals={day.available} day={day} timezone={targetTimezone} className="available-row" label={t(locale, 'availableLabel')} />
           </div>
           <TimeAxis />
         </div>
@@ -112,9 +107,9 @@ function DayCard({ day, targetTimezone }: { day: DailySchedule; targetTimezone: 
 
       <div className="day-card-footer">
         <div className="mini-legend">
-          <span><i className="legend-swatch available" />可用</span>
-          <span><i className="legend-swatch excluded" />排除</span>
-          <span><i className="legend-swatch coverage" />覆盖交集</span>
+          <span><i className="legend-swatch available" />{t(locale, 'available')}</span>
+          <span><i className="legend-swatch excluded" />{t(locale, 'excluded')}</span>
+          <span><i className="legend-swatch coverage" />{t(locale, 'coverageLabel')}</span>
         </div>
         {day.available.length > 0 ? (
           <div className="available-list">
@@ -125,18 +120,18 @@ function DayCard({ day, targetTimezone }: { day: DailySchedule; targetTimezone: 
             ))}
           </div>
         ) : (
-          <span className="muted-result"><Icon name="clock" size={13} />覆盖规则在当天没有重叠</span>
+          <span className="muted-result"><Icon name="clock" size={13} />{t(locale, 'noOverlap')}</span>
         )}
       </div>
     </article>
   )
 }
 
-export default function ScheduleView({ days, targetTimezone }: ScheduleViewProps) {
+export default function ScheduleView({ days, targetTimezone, locale }: ScheduleViewProps) {
   return (
     <div className="schedule-list">
       {days.map((day) => (
-        <DayCard key={day.date} day={day} targetTimezone={targetTimezone} />
+        <DayCard key={day.date} day={day} targetTimezone={targetTimezone} locale={locale} />
       ))}
     </div>
   )

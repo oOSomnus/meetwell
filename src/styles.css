@@ -83,10 +83,16 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .save-indicator i { display: block; width: 7px; height: 7px; border-radius: 50%; background: #44a37d; }
 .save-indicator.error { color: var(--danger); }
 .save-indicator.error i { background: var(--danger); }
+.topbar-locale-control { min-height: 34px; padding: 0 7px; display: inline-flex; align-items: center; gap: 5px; color: #6f7d7e; background: transparent; border: 1px solid transparent; border-radius: 7px; }
+.topbar-locale-control svg { color: #7c898a; flex: 0 0 auto; }
+.topbar-locale-control select { padding: 0; color: #5f6d6f; background: transparent; border: 0; cursor: pointer; font-size: 11px; font-weight: 600; }
+.topbar-locale-control:hover { color: var(--ink-strong); background: #f1f4f3; border-color: var(--line); }
+.topbar-locale-control:hover svg { color: var(--accent); }
 .topbar-button { min-height: 34px; padding: 0 9px; display: inline-flex; align-items: center; gap: 7px; color: #5f6d6f; background: transparent; border: 1px solid transparent; border-radius: 7px; font-size: 11px; font-weight: 600; transition: color .16s ease, background .16s ease, border-color .16s ease; }
 .topbar-button svg { color: #7c898a; flex: 0 0 auto; }
 .topbar-button:hover { color: var(--ink-strong); background: #f1f4f3; border-color: var(--line); }
 .topbar-button:hover svg { color: var(--accent); }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 .app-content { width: min(1360px, 100%); margin: 0 auto; padding: 38px 32px 68px; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 32px; margin-bottom: 28px; }
@@ -307,8 +313,11 @@ h1 { max-width: 720px; margin-top: 9px; color: var(--ink-strong); font-size: cla
   .save-indicator { margin-right: 2px; }
   .action-divider { margin: 0 3px; }
   .topbar-button { width: 32px; min-height: 32px; padding: 0; justify-content: center; }
+  .topbar-locale-control { position: relative; width: 32px; min-height: 32px; padding: 0; justify-content: center; gap: 0; }
+  .topbar-locale-control select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
   .app-content { padding: 28px 16px 48px; }
   .page-header { align-items: flex-start; flex-direction: column; gap: 20px; margin-bottom: 22px; }
+  .page-header-copy { width: 100%; }
   h1 { font-size: 31px; }
   .summary-card { width: 100%; padding: 13px 0 0; border-top: 1px solid var(--line-strong); border-left: 0; }
   .summary-card strong { display: inline-block; margin-right: 8px; }
@@ -335,6 +344,7 @@ h1 { max-width: 720px; margin-top: 9px; color: var(--ink-strong); font-size: cla
   .available-list { justify-content: flex-start; }
   .rule-card-actions { opacity: 1; }
   .result-footnote { align-items: flex-start; }
+  .result-footnote > span:not(.footnote-line) { min-width: 0; flex: 1 1 auto; justify-content: center; white-space: normal; text-align: center; }
   .result-footnote .footnote-line { margin-top: 6px; }
   .rule-editor { padding: 24px 20px 0; }
 }

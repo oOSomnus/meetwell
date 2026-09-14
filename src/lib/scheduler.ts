@@ -9,7 +9,7 @@ import {
   weekdayNumber,
   zonedDateTimeToEpoch,
 } from './dateUtils'
-import type { DailySchedule, RuleType, ScheduleResult, SchedulerState, TimeInterval, TimeRule } from '../types'
+import type { DailySchedule, ScheduleResult, SchedulerState, TimeInterval, TimeRule } from '../types'
 
 const SOURCE_DATE_PADDING = 3
 
@@ -193,8 +193,4 @@ export function describeOffsetAt(epoch: number, timezone: string): string {
   const sign = offset >= 0 ? '+' : '-'
   const absoluteMinutes = Math.abs(Math.round(offset / 60_000))
   return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')} UTC${sign}${String(Math.floor(absoluteMinutes / 60)).padStart(2, '0')}:${String(absoluteMinutes % 60).padStart(2, '0')}`
-}
-
-export function ruleTypeLabel(type: RuleType): string {
-  return type === 'override' ? '覆盖时间' : '排除时间'
 }

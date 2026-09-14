@@ -1,3 +1,5 @@
+import type { Locale } from '../types'
+
 const formatterCache = new Map<string, Intl.DateTimeFormat>()
 
 function getFormatter(
@@ -171,7 +173,7 @@ export function formatTimeForDay(
   return formatTimeInZone(epoch, timeZone)
 }
 
-export function formatDisplayDate(date: string, language: 'zh' | 'en'): string {
+export function formatDisplayDate(date: string, language: Locale): string {
   const parsed = parseDate(date)
   if (!parsed) return date
   const locale = language === 'zh' ? 'zh-CN' : 'en-US'
@@ -183,7 +185,7 @@ export function formatDisplayDate(date: string, language: 'zh' | 'en'): string {
   }).format(new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day)))
 }
 
-export function formatWeekday(date: string, language: 'zh' | 'en'): string {
+export function formatWeekday(date: string, language: Locale): string {
   const parsed = parseDate(date)
   if (!parsed) return ''
   return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
@@ -192,7 +194,7 @@ export function formatWeekday(date: string, language: 'zh' | 'en'): string {
   }).format(new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day)))
 }
 
-export function formatDateWithWeekday(date: string, language: 'zh' | 'en'): string {
+export function formatDateWithWeekday(date: string, language: Locale): string {
   const displayDate = formatDisplayDate(date, language)
   const weekday = formatWeekday(date, language)
   return language === 'zh' ? `${weekday} · ${displayDate}` : `${weekday} · ${displayDate}`
@@ -241,12 +243,40 @@ export function getTimeZones(): string[] {
   return [...new Set([...COMMON_TIMEZONES, ...supported])]
 }
 
-export function formatRuleDays(ruleDate: string | undefined, weekdays: number[] | undefined): string {
-  if (ruleDate) return ruleDate
+const WEEKDAY_REFERENCE_DATES = [
+  '2026-01-05',
+  '2026-01-06',
+  '2026-01-07',
+  '2026-01-08',
+  '2026-01-09',
+  '2026-01-10',
+  '2026-01-11',
+]
+
+export function formatWeekdayNumber(
+  weekday: number,
+  language: Locale,
+  style: 'short' | 'long' = 'short',
+): string {
+  const referenceDate = WEEKDAY_REFERENCE_DATES[weekday - 1]
+  if (!referenceDate) return ''
+  const parsed = parseDate(referenceDate)!
+  return new Intl.DateTimeFormat(language === 'zh' ? 'zh-CN' : 'en-US', {
+    timeZone: 'UTC',
+    weekday: style,
+  }).format(new Date(Date.UTC(parsed.year, parsed.month - 1, parsed.day)))
+}
+
+export function formatRuleDays(
+  ruleDate: string | undefined,
+  weekdays: number[] | undefined,
+  language: Locale = 'zh',
+): string {
+  if (ruleDate) return formatDisplayDate(ruleDate, language)
   return (weekdays ?? [])
     .slice()
     .sort((left, right) => left - right)
-    .map((day) => ['一', '二', '三', '四', '五', '六', '日'][day - 1] ?? '?')
-    .map((day) => `周${day}`)
-    .join('、')
+    .map((day) => formatWeekdayNumber(day, language))
+    .filter(Boolean)
+    .join(language === 'zh' ? '、' : ', ')
 }
