@@ -55,6 +55,48 @@ describe('interval operations', () => {
 })
 
 describe('schedule calculation', () => {
+  it('uses the full calculation day as the default coverage without availability rules', () => {
+    const result = computeSchedule(state([]))
+
+    expect(result.hasEnabledOverride).toBe(false)
+    expect(result.days.every((day) => day.coverage.length === 1)).toBe(true)
+    expect(result.days.every((day) => intervalMinutes(day.available[0]) === 1440)).toBe(true)
+  })
+
+  it('subtracts exclusions from the default full-day coverage', () => {
+    const result = computeSchedule(
+      state([
+        rule({
+          id: 'lunch',
+          name: 'lunch',
+          type: 'exclude',
+          weekdays: [2],
+          startTime: '12:00',
+          endTime: '13:00',
+        }),
+      ]),
+    )
+
+    expect(result.days[0].available).toEqual([
+      { start: result.days[0].dayStart, end: result.days[0].dayEnd },
+    ])
+    expect(result.days[1].available.map((interval) => intervalMinutes(interval))).toEqual([720, 660])
+  })
+
+  it('does not use default coverage on dates where an availability rule is inactive', () => {
+    const result = computeSchedule(
+      state([
+        rule({ id: 'monday-only', weekdays: [1] }),
+      ], {
+        rangeStart: '2026-09-14',
+        rangeEnd: '2026-09-15',
+      }),
+    )
+
+    expect(result.days[0].available.map((interval) => intervalMinutes(interval))).toEqual([480])
+    expect(result.days[1].available).toEqual([])
+  })
+
   it('expands weekly rules and removes an exclusion on one weekday', () => {
     const result = computeSchedule(
       state([

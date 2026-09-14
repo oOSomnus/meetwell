@@ -120,7 +120,7 @@ function DayCard({ day, targetTimezone, locale }: { day: DailySchedule; targetTi
             ))}
           </div>
         ) : (
-          <span className="muted-result"><Icon name="clock" size={13} />{t(locale, 'noOverlap')}</span>
+          <span className="muted-result"><Icon name="clock" size={13} />{t(locale, 'noAvailableReason')}</span>
         )}
       </div>
     </article>

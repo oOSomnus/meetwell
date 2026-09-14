@@ -149,7 +149,9 @@ export function computeSchedule(state: SchedulerState): ScheduleResult {
       else exclusionIntervals.push(...intervals)
     }
 
-    const coverage = intersectIntervalSets(overrideSets)
+    const coverage = hasEnabledOverride
+      ? intersectIntervalSets(overrideSets)
+      : [{ start: dayStart, end: dayEnd }]
     const exclusions = mergeIntervals(exclusionIntervals)
     const available = subtractIntervals(coverage, exclusions)
 

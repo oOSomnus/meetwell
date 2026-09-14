@@ -321,17 +321,6 @@ function App() {
                   <p>{t(locale, 'invalidDateRangeBody')}</p>
                 </div>
               </div>
-            ) : !result.hasEnabledOverride ? (
-              <div className="notice-card empty-card">
-                <span className="notice-icon"><Icon name="calendar" size={18} /></span>
-                <div>
-                  <strong>{t(locale, 'addOverrideTitle')}</strong>
-                  <p>{t(locale, 'addOverrideBody')}</p>
-                  <button className="inline-action" type="button" onClick={() => addRule('override')}>
-                    {t(locale, 'addOverrideAction')} <Icon name="arrow-right" size={15} />
-                  </button>
-                </div>
-              </div>
             ) : (
               <ScheduleView days={result.days} targetTimezone={state.targetTimezone} locale={locale} />
             )}

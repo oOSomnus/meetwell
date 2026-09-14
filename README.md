@@ -23,6 +23,7 @@ npm run build
 ## Features
 
 - Add availability and exclusion rules.
+- Use the calculation range as an all-day baseline when no availability rule is configured.
 - Support daily, weekly, and specific-date schedules.
 - Apply specific-date rules across an inclusive date range.
 - Configure an independent IANA time zone for every rule.
