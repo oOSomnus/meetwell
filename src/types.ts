@@ -29,6 +29,7 @@ export interface SchedulerState {
   secondaryTimezone: string | null
   recentTimezones: string[]
   exportLanguage: ExportLanguage
+  minimumDurationMinutes: number
   rules: TimeRule[]
 }
 

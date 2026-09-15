@@ -29,7 +29,36 @@ describe('configuration migration', () => {
       primaryTimezone: 'America/New_York',
       secondaryTimezone: null,
       recentTimezones: [],
+      minimumDurationMinutes: 0,
     })
+  })
+
+  it('preserves a valid minimum duration', () => {
+    const parsed = parseState({
+      version: 2,
+      rangeStart: '2026-09-14',
+      rangeEnd: '2026-09-18',
+      targetTimezone: 'UTC',
+      exportLanguage: 'zh',
+      minimumDurationMinutes: 90,
+      rules: [rule],
+    })
+
+    expect(parsed?.minimumDurationMinutes).toBe(90)
+  })
+
+  it.each([1441, -1, 30.5, null, '90'])('rejects an invalid minimum duration: %s', (minimumDurationMinutes) => {
+    const parsed = parseState({
+      version: 2,
+      rangeStart: '2026-09-14',
+      rangeEnd: '2026-09-18',
+      targetTimezone: 'UTC',
+      exportLanguage: 'zh',
+      minimumDurationMinutes,
+      rules: [rule],
+    })
+
+    expect(parsed).toBeNull()
   })
 
   it('keeps valid preferences and cleans invalid optional values', () => {

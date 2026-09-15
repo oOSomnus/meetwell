@@ -14,6 +14,7 @@ function state(rules: TimeRule[], overrides: Partial<SchedulerState> = {}): Sche
     secondaryTimezone: null,
     recentTimezones: [],
     exportLanguage: 'zh',
+    minimumDurationMinutes: 0,
     rules,
     ...overrides,
   }
@@ -152,6 +153,61 @@ describe('schedule calculation', () => {
     expect(result.days[1].available.map((interval) => intervalMinutes(interval))).toEqual([180, 240])
   })
 
+  it('removes final availability intervals shorter than the minimum duration', () => {
+    const result = computeSchedule(
+      state(
+        [
+          rule({
+            id: 'team',
+            startTime: '09:00',
+            endTime: '17:00',
+          }),
+          rule({
+            id: 'break',
+            type: 'exclude',
+            weekdays: [1],
+            startTime: '09:30',
+            endTime: '10:15',
+          }),
+        ],
+        { rangeStart: '2026-09-14', rangeEnd: '2026-09-14', minimumDurationMinutes: 60 },
+      ),
+    )
+
+    expect(result.days[0].available.map((interval) => intervalMinutes(interval))).toEqual([405])
+  })
+
+  it('keeps an interval whose duration exactly meets the minimum', () => {
+    const result = computeSchedule(
+      state(
+        [rule({ startTime: '09:00', endTime: '10:00' })],
+        { rangeStart: '2026-09-14', rangeEnd: '2026-09-14', minimumDurationMinutes: 60 },
+      ),
+    )
+
+    expect(result.days[0].available.map((interval) => intervalMinutes(interval))).toEqual([60])
+  })
+
+  it('filters each split interval independently', () => {
+    const result = computeSchedule(
+      state(
+        [
+          rule({ startTime: '09:00', endTime: '12:00' }),
+          rule({
+            id: 'short-break',
+            type: 'exclude',
+            weekdays: [1],
+            startTime: '10:00',
+            endTime: '10:30',
+          }),
+        ],
+        { rangeStart: '2026-09-14', rangeEnd: '2026-09-14', minimumDurationMinutes: 90 },
+      ),
+    )
+
+    expect(result.days[0].available.map((interval) => intervalMinutes(interval))).toEqual([90])
+  })
+
   it('applies daily rules to every date in the calculation range', () => {
     const result = computeSchedule(
       state([
@@ -217,6 +273,7 @@ describe('schedule calculation', () => {
           rangeStart: '2026-03-08',
           rangeEnd: '2026-03-08',
           targetTimezone: 'America/New_York',
+          minimumDurationMinutes: 120,
         },
       ),
     )

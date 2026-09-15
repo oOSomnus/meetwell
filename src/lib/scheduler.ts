@@ -83,6 +83,15 @@ export function subtractIntervals(
   return result
 }
 
+function filterByMinimumDuration(
+  intervals: TimeInterval[],
+  minimumDurationMinutes: number,
+): TimeInterval[] {
+  if (minimumDurationMinutes <= 0) return intervals
+  const minimumDurationMs = minimumDurationMinutes * 60_000
+  return intervals.filter((interval) => interval.end - interval.start >= minimumDurationMs)
+}
+
 function isRuleSelectedOnDate(rule: TimeRule, localDate: string): boolean {
   if (rule.schedule === 'daily') return true
   if (rule.schedule === 'date') {
@@ -155,7 +164,10 @@ export function computeSchedule(state: SchedulerState): ScheduleResult {
       ? intersectIntervalSets(overrideSets)
       : [{ start: dayStart, end: dayEnd }]
     const exclusions = mergeIntervals(exclusionIntervals)
-    const available = subtractIntervals(coverage, exclusions)
+    const available = filterByMinimumDuration(
+      subtractIntervals(coverage, exclusions),
+      state.minimumDurationMinutes,
+    )
 
     days.push({
       date,

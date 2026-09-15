@@ -71,6 +71,7 @@ The target list can be customized with `MEETWELL_TARGETS`, using space-separated
 - Apply specific-date rules across an inclusive date range.
 - Configure an independent IANA time zone for every rule.
 - Intersect availability rules and subtract excluded times.
+- Filter out final availability windows shorter than the configured minimum duration.
 - Handle overnight schedules and daylight-saving-time conversions.
 - Display the final availability as a daily timeline in the target time zone.
 - Automatically save configuration in the browser.

@@ -44,6 +44,18 @@ export function parseState(value: unknown): SchedulerState | null {
     return null
   }
 
+  const minimumDurationMinutes = value.minimumDurationMinutes === undefined
+    ? 0
+    : value.minimumDurationMinutes
+  if (
+    typeof minimumDurationMinutes !== 'number' ||
+    !Number.isInteger(minimumDurationMinutes) ||
+    minimumDurationMinutes < 0 ||
+    minimumDurationMinutes > 1440
+  ) {
+    return null
+  }
+
   const rules = value.rules.map(parseRule)
   if (rules.some((rule) => rule === null)) return null
   const primaryTimezone = typeof value.primaryTimezone === 'string' && isValidTimeZone(value.primaryTimezone)
@@ -67,6 +79,7 @@ export function parseState(value: unknown): SchedulerState | null {
     secondaryTimezone,
     recentTimezones,
     exportLanguage: value.exportLanguage,
+    minimumDurationMinutes,
     rules: rules as TimeRule[],
   }
 }

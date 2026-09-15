@@ -22,6 +22,9 @@ import type { ExportLanguage, Locale, RuleType, SchedulerState, TimeRule } from 
 
 type Notice = { tone: 'success' | 'error' | 'info'; message: string }
 
+const DURATION_HOURS = Array.from({ length: 25 }, (_, index) => index)
+const DURATION_MINUTES = Array.from({ length: 60 }, (_, index) => index)
+
 function createDefaultState(): SchedulerState {
   const timezone = resolveBrowserTimeZone()
   const start = todayInTimeZone(timezone)
@@ -34,6 +37,7 @@ function createDefaultState(): SchedulerState {
     secondaryTimezone: null,
     recentTimezones: [],
     exportLanguage: 'zh',
+    minimumDurationMinutes: 0,
     rules: [],
   }
 }
@@ -89,6 +93,16 @@ function App() {
 
   function updateState(patch: Partial<SchedulerState>) {
     setState((current) => ({ ...current, ...patch }))
+  }
+
+  function updateMinimumDurationHours(hours: number) {
+    const minutes = hours === 24 ? 0 : state.minimumDurationMinutes % 60
+    updateState({ minimumDurationMinutes: hours * 60 + minutes })
+  }
+
+  function updateMinimumDurationMinutes(minutes: number) {
+    const hours = Math.floor(state.minimumDurationMinutes / 60)
+    updateState({ minimumDurationMinutes: hours * 60 + minutes })
   }
 
   function recordTimezoneSelection(timezone: string) {
@@ -190,6 +204,8 @@ function App() {
   const overrideCount = state.rules.filter((rule) => rule.type === 'override').length
   const excludeCount = state.rules.filter((rule) => rule.type === 'exclude').length
   const availableMinutes = totalAvailableMinutes(result)
+  const minimumDurationHours = Math.floor(state.minimumDurationMinutes / 60)
+  const minimumDurationRemainder = state.minimumDurationMinutes % 60
 
   return (
     <div className="app-shell">
@@ -299,6 +315,36 @@ function App() {
                 ariaLabel={t(locale, 'targetTimezone')}
                 onChange={selectTargetTimezone}
               />
+            </label>
+          </div>
+          <div className="control-divider" />
+          <div className="control-block minimum-duration-control">
+            <span className="control-icon"><Icon name="clock" size={17} /></span>
+            <label>
+              <span>{t(locale, 'minimumDuration')}</span>
+              <div className="duration-pair">
+                <select
+                  value={minimumDurationHours}
+                  aria-label={t(locale, 'minimumDurationHours')}
+                  onChange={(event) => updateMinimumDurationHours(Number(event.target.value))}
+                >
+                  {DURATION_HOURS.map((hours) => <option key={hours} value={hours}>{hours}</option>)}
+                </select>
+                <span className="duration-unit">
+                  {t(locale, minimumDurationHours === 1 ? 'durationHour' : 'durationHours')}
+                </span>
+                <select
+                  value={minimumDurationRemainder}
+                  aria-label={t(locale, 'minimumDurationMinutes')}
+                  disabled={minimumDurationHours === 24}
+                  onChange={(event) => updateMinimumDurationMinutes(Number(event.target.value))}
+                >
+                  {DURATION_MINUTES.map((minutes) => <option key={minutes} value={minutes}>{minutes}</option>)}
+                </select>
+                <span className="duration-unit">
+                  {t(locale, minimumDurationRemainder === 1 ? 'durationMinute' : 'durationMinutes')}
+                </span>
+              </div>
             </label>
           </div>
           <div className="control-divider" />
