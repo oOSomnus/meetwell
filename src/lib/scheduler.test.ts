@@ -6,10 +6,13 @@ import type { SchedulerState, TimeInterval, TimeRule } from '../types'
 
 function state(rules: TimeRule[], overrides: Partial<SchedulerState> = {}): SchedulerState {
   return {
-    version: 1,
+    version: 2,
     rangeStart: '2026-09-14',
     rangeEnd: '2026-09-18',
     targetTimezone: 'UTC',
+    primaryTimezone: 'UTC',
+    secondaryTimezone: null,
+    recentTimezones: [],
     exportLanguage: 'zh',
     rules,
     ...overrides,

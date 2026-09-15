@@ -116,6 +116,19 @@ export function timeToMinutes(time: string): number | null {
   return hour * 60 + minute
 }
 
+/** Normalize common keyboard formats while keeping invalid input available for validation. */
+export function normalizeTimeInput(value: string): string {
+  const trimmed = value.trim()
+  const colonMatch = /^(\d{1,2}):(\d{1,2})$/.exec(trimmed)
+  const compactMatch = /^(\d{3,4})$/.exec(trimmed)
+  const hour = colonMatch ? colonMatch[1] : compactMatch ? compactMatch[1].slice(0, -2) : null
+  const minute = colonMatch ? colonMatch[2] : compactMatch ? compactMatch[1].slice(-2) : null
+  if (hour === null || minute === null) return value
+
+  const normalized = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+  return timeToMinutes(normalized) === null ? value : normalized
+}
+
 export function getTimeZoneOffsetMs(epoch: number, timeZone: string): number {
   const parts = getZonedParts(epoch, timeZone)
   const asUtc = Date.UTC(

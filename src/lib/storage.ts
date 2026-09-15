@@ -1,16 +1,22 @@
 import type { SchedulerState, TimeRule } from '../types'
 import { isValidTimeZone, parseDate, timeToMinutes } from './dateUtils'
+import { sanitizeRecentTimezones } from './timezones'
 
-const STORAGE_KEY = 'meetwell.scheduler.v1'
+const STORAGE_KEY = 'meetwell.scheduler.v2'
+const LEGACY_STORAGE_KEY = 'meetwell.scheduler.v1'
 
 export function loadState(): SchedulerState | null {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    return parseState(JSON.parse(raw))
-  } catch {
-    return null
+  for (const key of [STORAGE_KEY, LEGACY_STORAGE_KEY]) {
+    try {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) continue
+      const parsed = parseState(JSON.parse(raw))
+      if (parsed) return parsed
+    } catch {
+      // Try the next storage key so a corrupt v2 entry cannot hide a valid legacy entry.
+    }
   }
+  return null
 }
 
 export function saveState(state: SchedulerState): boolean {
@@ -24,7 +30,7 @@ export function saveState(state: SchedulerState): boolean {
 
 export function parseState(value: unknown): SchedulerState | null {
   if (!isRecord(value)) return null
-  if (value.version !== 1) return null
+  if (value.version !== 1 && value.version !== 2) return null
   if (
     typeof value.rangeStart !== 'string' ||
     typeof value.rangeEnd !== 'string' ||
@@ -40,11 +46,26 @@ export function parseState(value: unknown): SchedulerState | null {
 
   const rules = value.rules.map(parseRule)
   if (rules.some((rule) => rule === null)) return null
+  const primaryTimezone = typeof value.primaryTimezone === 'string' && isValidTimeZone(value.primaryTimezone)
+    ? value.primaryTimezone
+    : value.targetTimezone
+  const secondaryTimezone = typeof value.secondaryTimezone === 'string' &&
+      isValidTimeZone(value.secondaryTimezone) &&
+      value.secondaryTimezone !== primaryTimezone
+    ? value.secondaryTimezone
+    : null
+  const recentTimezones = Array.isArray(value.recentTimezones)
+    ? sanitizeRecentTimezones(value.recentTimezones, isValidTimeZone)
+    : []
+
   return {
-    version: 1,
+    version: 2,
     rangeStart: value.rangeStart,
     rangeEnd: value.rangeEnd,
     targetTimezone: value.targetTimezone,
+    primaryTimezone,
+    secondaryTimezone,
+    recentTimezones,
     exportLanguage: value.exportLanguage,
     rules: rules as TimeRule[],
   }
@@ -115,4 +136,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-export { STORAGE_KEY }
+export { LEGACY_STORAGE_KEY, STORAGE_KEY }

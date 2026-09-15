@@ -1,19 +1,26 @@
 import { useEffect, useState } from 'react'
 import {
   formatWeekdayNumber,
-  getTimeZones,
   isValidTimeZone,
+  normalizeTimeInput,
   parseDate,
   timeToMinutes,
 } from '../lib/dateUtils'
 import { t } from '../lib/i18n'
 import Icon from './Icon'
+import TimeInput from './TimeInput'
+import TimezonePicker from './TimezonePicker'
 import type { Locale, RuleType, ScheduleKind, TimeRule } from '../types'
 
 interface RuleEditorProps {
   initialRule: TimeRule
   mode: 'create' | 'edit'
   locale: Locale
+  primaryTimezone: string
+  secondaryTimezone: string | null
+  recentTimezones: readonly string[]
+  timezones: readonly string[]
+  onTimezoneSelected: (timezone: string) => void
   onClose: () => void
   onSave: (rule: TimeRule) => void
 }
@@ -28,10 +35,20 @@ const WEEKDAYS = [
   { value: 7 },
 ]
 
-export default function RuleEditor({ initialRule, mode, locale, onClose, onSave }: RuleEditorProps) {
+export default function RuleEditor({
+  initialRule,
+  mode,
+  locale,
+  primaryTimezone,
+  secondaryTimezone,
+  recentTimezones,
+  timezones,
+  onTimezoneSelected,
+  onClose,
+  onSave,
+}: RuleEditorProps) {
   const [draft, setDraft] = useState<TimeRule>(initialRule)
   const [error, setError] = useState('')
-  const timezones = getTimeZones()
 
   useEffect(() => {
     setDraft(initialRule)
@@ -90,8 +107,10 @@ export default function RuleEditor({ initialRule, mode, locale, onClose, onSave 
       setError(t(locale, 'errorTimezone'))
       return
     }
-    const start = timeToMinutes(draft.startTime)
-    const end = timeToMinutes(draft.endTime)
+    const startTime = normalizeTimeInput(draft.startTime)
+    const endTime = normalizeTimeInput(draft.endTime)
+    const start = timeToMinutes(startTime)
+    const end = timeToMinutes(endTime)
     if (start === null || end === null || start === end) {
       setError(t(locale, 'errorTimeRange'))
       return
@@ -113,6 +132,8 @@ export default function RuleEditor({ initialRule, mode, locale, onClose, onSave 
     onSave({
       ...draft,
       name: draft.name.trim(),
+      startTime,
+      endTime,
       weekdays: draft.schedule === 'weekly' ? draft.weekdays : undefined,
       dateStart: draft.schedule === 'date' ? dateStart : undefined,
       dateEnd: draft.schedule === 'date' ? dateEnd : undefined,
@@ -182,13 +203,19 @@ export default function RuleEditor({ initialRule, mode, locale, onClose, onSave 
             </label>
             <label className="field-label">
               {t(locale, 'ruleTimezone')}
-              <select value={draft.timezone} onChange={(event) => update({ timezone: event.target.value })}>
-                {timezones.map((timezone) => (
-                  <option value={timezone} key={timezone}>
-                    {timezone}
-                  </option>
-                ))}
-              </select>
+              <TimezonePicker
+                value={draft.timezone}
+                locale={locale}
+                primaryTimezone={primaryTimezone}
+                secondaryTimezone={secondaryTimezone}
+                recentTimezones={recentTimezones}
+                timezones={timezones}
+                ariaLabel={t(locale, 'ruleTimezone')}
+                onChange={(timezone) => {
+                  update({ timezone })
+                  onTimezoneSelected(timezone)
+                }}
+              />
             </label>
           </div>
 
@@ -251,27 +278,29 @@ export default function RuleEditor({ initialRule, mode, locale, onClose, onSave 
           <div className="form-grid time-grid">
             <label className="field-label" htmlFor="rule-start">
               {t(locale, 'startTime')}
-              <input
+              <TimeInput
                 id="rule-start"
-                type="time"
                 value={draft.startTime}
-                onChange={(event) => update({ startTime: event.target.value })}
+                locale={locale}
+                aria-label={t(locale, 'startTime')}
+                onChange={(value) => update({ startTime: value })}
               />
             </label>
             <label className="field-label" htmlFor="rule-end">
               {t(locale, 'endTime')}
-              <input
+              <TimeInput
                 id="rule-end"
-                type="time"
                 value={draft.endTime}
-                onChange={(event) => update({ endTime: event.target.value })}
+                locale={locale}
+                aria-label={t(locale, 'endTime')}
+                onChange={(value) => update({ endTime: value })}
               />
             </label>
           </div>
 
           <div className="helper-note">
             <span className="helper-icon"><Icon name="help-circle" size={15} /></span>
-            {t(locale, 'overnightHelper')}
+            <span>{t(locale, 'timeInputHelp')} {t(locale, 'overnightHelper')}</span>
           </div>
 
           {error ? <div className="form-error">{error}</div> : null}

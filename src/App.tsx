@@ -4,6 +4,8 @@ import Icon from './components/Icon'
 import RuleEditor from './components/RuleEditor'
 import RuleList from './components/RuleList'
 import ScheduleView from './components/ScheduleView'
+import SettingsModal from './components/SettingsModal'
+import TimezonePicker from './components/TimezonePicker'
 import { buildTextExport, downloadFile, downloadJson } from './lib/export'
 import {
   addDays,
@@ -15,6 +17,7 @@ import {
 import { formatDuration, loadLocale, ruleCountLabel, saveLocale, t } from './lib/i18n'
 import { computeSchedule, totalAvailableMinutes } from './lib/scheduler'
 import { loadState, parseState, saveState } from './lib/storage'
+import { recordRecentTimezone } from './lib/timezones'
 import type { ExportLanguage, Locale, RuleType, SchedulerState, TimeRule } from './types'
 
 type Notice = { tone: 'success' | 'error' | 'info'; message: string }
@@ -23,10 +26,13 @@ function createDefaultState(): SchedulerState {
   const timezone = resolveBrowserTimeZone()
   const start = todayInTimeZone(timezone)
   return {
-    version: 1,
+    version: 2,
     rangeStart: start,
     rangeEnd: addDays(start, 6),
     targetTimezone: timezone,
+    primaryTimezone: timezone,
+    secondaryTimezone: null,
+    recentTimezones: [],
     exportLanguage: 'zh',
     rules: [],
   }
@@ -41,7 +47,7 @@ function createRule(type: RuleType, state: SchedulerState, locale: Locale): Time
     name: t(locale, type === 'override' ? 'defaultOverrideName' : 'defaultExcludeName'),
     type,
     schedule: 'weekly',
-    timezone: state.targetTimezone,
+    timezone: state.primaryTimezone,
     weekdays: [1, 2, 3, 4, 5],
     dateStart: state.rangeStart,
     dateEnd: state.rangeStart,
@@ -58,6 +64,7 @@ function App() {
   const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
   const [notice, setNotice] = useState<Notice | null>(null)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'error'>('saved')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const importInput = useRef<HTMLInputElement>(null)
   const timezones = useMemo(() => getTimeZones(), [])
   const result = useMemo(() => computeSchedule(state), [state])
@@ -82,6 +89,32 @@ function App() {
 
   function updateState(patch: Partial<SchedulerState>) {
     setState((current) => ({ ...current, ...patch }))
+  }
+
+  function recordTimezoneSelection(timezone: string) {
+    setState((current) => ({
+      ...current,
+      recentTimezones: recordRecentTimezone(current.recentTimezones, timezone),
+    }))
+  }
+
+  function selectTargetTimezone(timezone: string) {
+    setState((current) => ({
+      ...current,
+      targetTimezone: timezone,
+      recentTimezones: recordRecentTimezone(current.recentTimezones, timezone),
+    }))
+  }
+
+  function saveTimezoneSettings(primaryTimezone: string, secondaryTimezone: string | null) {
+    setState((current) => ({
+      ...current,
+      primaryTimezone,
+      secondaryTimezone,
+      targetTimezone: primaryTimezone,
+    }))
+    setSettingsOpen(false)
+    showNotice(t(locale, 'timezoneSettingsSaved'))
   }
 
   function addRule(type: RuleType) {
@@ -194,6 +227,10 @@ function App() {
               </select>
             </label>
             <span className="action-divider" aria-hidden="true" />
+            <button className="topbar-button" type="button" onClick={() => setSettingsOpen(true)}>
+              <Icon name="settings" size={15} />
+              <span className="topbar-button-label">{t(locale, 'settings')}</span>
+            </button>
             <button className="topbar-button" type="button" onClick={saveNow}>
               <Icon name="save" size={15} />
               <span className="topbar-button-label">{t(locale, 'save')}</span>
@@ -252,13 +289,16 @@ function App() {
             <span className="control-icon"><Icon name="globe" size={17} /></span>
             <label>
               <span>{t(locale, 'targetTimezone')}</span>
-              <select value={state.targetTimezone} onChange={(event) => updateState({ targetTimezone: event.target.value })}>
-                {timezones.map((timezone) => (
-                  <option value={timezone} key={timezone}>
-                    {timezone}
-                  </option>
-                ))}
-              </select>
+              <TimezonePicker
+                value={state.targetTimezone}
+                locale={locale}
+                primaryTimezone={state.primaryTimezone}
+                secondaryTimezone={state.secondaryTimezone}
+                recentTimezones={state.recentTimezones}
+                timezones={timezones}
+                ariaLabel={t(locale, 'targetTimezone')}
+                onChange={selectTargetTimezone}
+              />
             </label>
           </div>
           <div className="control-divider" />
@@ -335,11 +375,28 @@ function App() {
       </main>
 
       {notice ? <div className={`toast ${notice.tone}`}>{notice.message}</div> : null}
+      {settingsOpen ? (
+        <SettingsModal
+          locale={locale}
+          primaryTimezone={state.primaryTimezone}
+          secondaryTimezone={state.secondaryTimezone}
+          recentTimezones={state.recentTimezones}
+          timezones={timezones}
+          onClose={() => setSettingsOpen(false)}
+          onSave={saveTimezoneSettings}
+          onTimezoneSelected={recordTimezoneSelection}
+        />
+      ) : null}
       {editingRule ? (
         <RuleEditor
           initialRule={editingRule}
           mode={editorMode}
           locale={locale}
+          primaryTimezone={state.primaryTimezone}
+          secondaryTimezone={state.secondaryTimezone}
+          recentTimezones={state.recentTimezones}
+          timezones={timezones}
+          onTimezoneSelected={recordTimezoneSelection}
           onClose={() => setEditingRule(null)}
           onSave={saveRule}
         />

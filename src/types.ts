@@ -21,10 +21,13 @@ export interface TimeRule {
 }
 
 export interface SchedulerState {
-  version: 1
+  version: 2
   rangeStart: string
   rangeEnd: string
   targetTimezone: string
+  primaryTimezone: string
+  secondaryTimezone: string | null
+  recentTimezones: string[]
   exportLanguage: ExportLanguage
   rules: TimeRule[]
 }
