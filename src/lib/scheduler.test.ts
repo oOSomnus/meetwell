@@ -100,6 +100,38 @@ describe('schedule calculation', () => {
     expect(result.days[1].available).toEqual([])
   })
 
+  it('treats an inactive override as an empty intersection on that date', () => {
+    const result = computeSchedule(
+      state(
+        [
+          rule({
+            id: 'daily-availability',
+            schedule: 'daily',
+            weekdays: undefined,
+            startTime: '07:00',
+            endTime: '23:00',
+          }),
+          rule({
+            id: 'weekday-availability',
+            weekdays: [1, 2, 3, 4, 5],
+            startTime: '09:00',
+            endTime: '17:00',
+          }),
+        ],
+        {
+          rangeStart: '2026-09-18',
+          rangeEnd: '2026-09-20',
+        },
+      ),
+    )
+
+    expect(result.days[0].available.map((interval) => intervalMinutes(interval))).toEqual([480])
+    expect(result.days[1].coverage).toEqual([])
+    expect(result.days[1].available).toEqual([])
+    expect(result.days[2].coverage).toEqual([])
+    expect(result.days[2].available).toEqual([])
+  })
+
   it('expands weekly rules and removes an exclusion on one weekday', () => {
     const result = computeSchedule(
       state([

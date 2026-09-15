@@ -144,9 +144,11 @@ export function computeSchedule(state: SchedulerState): ScheduleResult {
 
     for (const rule of enabledRules) {
       const intervals = getRuleIntervalsForTargetDay(rule, date, state.targetTimezone)
-      if (intervals.length === 0) continue
-      if (rule.type === 'override') overrideSets.push(intervals)
-      else exclusionIntervals.push(...intervals)
+      if (rule.type === 'override') {
+        overrideSets.push(intervals)
+      } else if (intervals.length > 0) {
+        exclusionIntervals.push(...intervals)
+      }
     }
 
     const coverage = hasEnabledOverride
